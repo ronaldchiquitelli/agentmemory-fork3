@@ -9,12 +9,6 @@ services:
         III_SDK_VERSION: "0.11.2"
     restart: unless-stopped
     environment:
-      # Coolify injects the actual FQDN into these vars when you configure
-      # domains in the dashboard. They are used downstream for CORS and
-      # Host-header allowlisting.
-      SERVICE_FQDN_AGENTMEMORY_3111: ${SERVICE_FQDN_AGENTMEMORY_3111}
-      SERVICE_FQDN_AGENTMEMORY_3113: ${SERVICE_FQDN_AGENTMEMORY_3113}
-
       # Viewer bind address — 0.0.0.0 makes it reachable through the
       # Coolify proxy. The viewer requires AGENTMEMORY_SECRET (generated
       # on first boot) and explicit VIEWER_ALLOWED_HOSTS when bound to
@@ -27,13 +21,14 @@ services:
       # We need both with and without port: Coolify's Traefik strips the
       # port from the Host header when it terminates TLS on 443, so the
       # viewer receives "viewer.memory.etell.com.br" (no port).
-      # Set VIEWER_DOMAIN in Coolify's Environment Variables tab (e.g.
-      # "viewer.memory.etell.com.br") to cover the proxied case.
-      VIEWER_ALLOWED_HOSTS: "${SERVICE_FQDN_AGENTMEMORY_3113},${VIEWER_DOMAIN},localhost:3113,127.0.0.1:3113"
+      # Set these in Coolify's Environment Variables tab:
+      #   AGENTMEMORY_FQDN=memory.etell.com.br
+      #   VIEWER_FQDN=viewer.memory.etell.com.br
+      VIEWER_ALLOWED_HOSTS: "${VIEWER_FQDN}:3113,${VIEWER_FQDN},localhost:3113,127.0.0.1:3113"
 
       # CORS origins for viewer responses (both the HTML page and the
       # REST API proxy responses it generates).
-      VIEWER_ALLOWED_ORIGINS: "https://${VIEWER_DOMAIN},http://localhost:3113,http://127.0.0.1:3113"
+      VIEWER_ALLOWED_ORIGINS: "https://${VIEWER_FQDN},http://localhost:3113,http://127.0.0.1:3113"
     expose:
       - "3111"
       - "3113"

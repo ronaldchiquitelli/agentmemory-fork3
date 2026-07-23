@@ -63,16 +63,15 @@ config, etc.). The secret is never printed again on subsequent boots.
 
    The `:3113` suffix tells Coolify's proxy to route traffic for this
    domain to the container's internal port 3113 (the viewer).
-3. Go to the **Environment Variables** tab and add one variable:
-   - **Key**: `VIEWER_DOMAIN`
-   - **Value**: `viewer.memory.domain.com.br`
-   - **Type**: `literal` (not `secret`)
+3. Go to the **Environment Variables** tab and add **two** variables:
 
-   This is needed because Coolify's Traefik strips the port from the
-   `Host` header when it terminates TLS, so the viewer receives
-   `viewer.memory.domain.com.br` (without `:3113`). The
-   `VIEWER_ALLOWED_HOSTS` env var in docker-compose.yml references
-   `${VIEWER_DOMAIN}` to cover this proxied Host header.
+   | Key | Value | Type |
+   |-----|-------|------|
+   | `AGENTMEMORY_FQDN` | `memory.domain.com.br` | `literal` |
+   | `VIEWER_FQDN` | `viewer.memory.domain.com.br` | `literal` |
+
+   These replace the built-in `SERVICE_FQDN_*` variables, which Coolify
+   generates once and never updates when you change domains later.
 4. Click **Save** and **Redeploy**.
 
 After redeploy, the viewer is ready at `https://viewer.memory.domain.com.br`.
@@ -86,8 +85,7 @@ earlier) when it makes authenticated API calls.
 > non-loopback address, it automatically requires:
 > 1. `AGENTMEMORY_SECRET` to be set (generated on first boot)
 > 2. `VIEWER_ALLOWED_HOSTS` to be explicitly configured (set from
->    Coolify's `SERVICE_FQDN_AGENTMEMORY_3113` and `VIEWER_DOMAIN`
->    env vars)
+>    `VIEWER_FQDN` env var)
 >
 > Every proxied API request through the viewer must present
 > `Authorization: Bearer <secret>`. Static HTML and the favicon are
@@ -95,14 +93,19 @@ earlier) when it makes authenticated API calls.
 > automatically. This is the same architecture used by the Fly.io
 > deployment template.
 
-> **Why `VIEWER_DOMAIN` is needed:** Coolify's Traefik proxy terminates
+> **Why `VIEWER_FQDN` is needed:** Coolify's Traefik proxy terminates
 > TLS and then forwards HTTP to the container. When it does so, it
 > strips the port from the `Host` header. The viewer receives
 > `Host: viewer.memory.domain.com.br` (no `:3113`). Without the bare
 > domain in `VIEWER_ALLOWED_HOSTS`, every request would get
-> `403 forbidden host`. `SERVICE_FQDN_AGENTMEMORY_3113` contains the
-> `:3113` suffix (because Coolify needs it for routing), so we also
-> need a separate `VIEWER_DOMAIN` variable.
+> `403 forbidden host`. We also include `viewer.memory.domain.com.br:3113`
+> (from `${VIEWER_FQDN}:3113`) for direct port-based access.
+
+> **Why not `SERVICE_FQDN_*`?** Coolify generates `SERVICE_FQDN_*`
+> automatically when you first add a domain, but **never updates them**
+> if you change the domain later. The UI also doesn't let you edit or
+> delete them. By using `AGENTMEMORY_FQDN` and `VIEWER_FQDN` instead,
+> you keep full control of the values.
 
 ## Verify the deployment
 
@@ -135,6 +138,23 @@ The viewer is protected by three layers when exposed to the network:
 All three are configured automatically via environment variables in
 `docker-compose.yml`. No Traefik labels, sidecars, or socat bridges
 are needed.
+
+## Environment variables reference
+
+Set these in Coolify's **Environment Variables** tab (all `literal` type):
+
+| Key | Value | Purpose |
+|-----|-------|---------|
+| `AGENTMEMORY_FQDN` | `memory.domain.com.br` | REST API domain (no port) |
+| `VIEWER_FQDN` | `viewer.memory.domain.com.br` | Viewer domain (no port) |
+
+These are used by `docker-compose.yml` for `VIEWER_ALLOWED_HOSTS` and
+`VIEWER_ALLOWED_ORIGINS`. They replace the built-in `SERVICE_FQDN_*`
+variables, which Coolify generates once and never updates.
+
+> **Note:** `COOLIFY_NETWORK` is injected automatically by Coolify — you
+> don't need to set it. `AGENTMEMORY_SECRET` is generated on first boot
+> and persisted to `/data/.hmac` — you don't set it either.
 
 ## Viewer access (port 3113 stays internal)
 
