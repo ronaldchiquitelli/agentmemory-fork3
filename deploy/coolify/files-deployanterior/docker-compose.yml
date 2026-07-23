@@ -1,0 +1,56 @@
+services:
+  agentmemory:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        AGENTMEMORY_VERSION: "0.9.28"
+        III_VERSION: "0.11.2"
+        III_SDK_VERSION: "0.11.2"
+    restart: unless-stopped
+    expose:
+      - "3111"
+      - "3114"
+    environment:
+      # Viewer Host-header allowlist: necessary because Traefik forwards
+      # requests with Host=viewer.memory.domain.com.br, which the viewer
+      # would reject with 403 ("forbidden host") by default.
+      # Viewer exposes only on 127.0.0.1:3113 (hardcoded for security).
+      # Socat runs inside the container (started by entrypoint.sh) and
+      # bridges 0.0.0.0:3114 → 127.0.0.1:3113.
+      - VIEWER_ALLOWED_HOSTS=${VIEWER_DOMAIN}
+      - VIEWER_ALLOWED_ORIGINS=https://${VIEWER_DOMAIN},http://localhost:3113,http://localhost:3114
+    volumes:
+      - agentmemory-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3111/agentmemory/livez || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - proxy_network
+
+  # Sidecar: bridges viewer (127.0.0.1:3113) to port 3114 so Coolify's
+  # proxy can reach it. Add a domain in Coolify UI pointing to port 3114,
+  # then use Coolify's built-in Basic Auth middleware for protection.
+  viewer-bridge:
+    image: alpine/socat:latest
+    command: tcp-listen:3114,fork,reuseaddr tcp-connect:127.0.0.1:3113
+    network_mode: "service:agentmemory"
+    depends_on:
+      - agentmemory
+    restart: unless-stopped
+
+volumes:
+  agentmemory-data:
+
+networks:
+  proxy_network:
+    external: true
+    name: ${COOLIFY_NETWORK}
