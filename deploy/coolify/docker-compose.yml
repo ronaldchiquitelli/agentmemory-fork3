@@ -24,11 +24,16 @@ services:
       # Host-header allowlist: the viewer only accepts requests whose
       # Host header matches one of these values. This is the defence
       # against DNS rebinding when the viewer is network-reachable.
-      VIEWER_ALLOWED_HOSTS: "${SERVICE_FQDN_AGENTMEMORY_3113},localhost:3113,127.0.0.1:3113"
+      # We need both with and without port: Coolify's Traefik strips the
+      # port from the Host header when it terminates TLS on 443, so the
+      # viewer receives "viewer.memory.etell.com.br" (no port).
+      # Set VIEWER_DOMAIN in Coolify's Environment Variables tab (e.g.
+      # "viewer.memory.etell.com.br") to cover the proxied case.
+      VIEWER_ALLOWED_HOSTS: "${SERVICE_FQDN_AGENTMEMORY_3113},${VIEWER_DOMAIN},localhost:3113,127.0.0.1:3113"
 
       # CORS origins for viewer responses (both the HTML page and the
       # REST API proxy responses it generates).
-      VIEWER_ALLOWED_ORIGINS: "https://${SERVICE_FQDN_AGENTMEMORY_3113},http://localhost:3113,http://127.0.0.1:3113"
+      VIEWER_ALLOWED_ORIGINS: "https://${VIEWER_DOMAIN},http://localhost:3113,http://127.0.0.1:3113"
     expose:
       - "3111"
       - "3113"

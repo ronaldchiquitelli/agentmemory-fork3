@@ -63,7 +63,17 @@ config, etc.). The secret is never printed again on subsequent boots.
 
    The `:3113` suffix tells Coolify's proxy to route traffic for this
    domain to the container's internal port 3113 (the viewer).
-3. Click **Save** and **Redeploy**.
+3. Go to the **Environment Variables** tab and add one variable:
+   - **Key**: `VIEWER_DOMAIN`
+   - **Value**: `viewer.memory.domain.com.br`
+   - **Type**: `literal` (not `secret`)
+
+   This is needed because Coolify's Traefik strips the port from the
+   `Host` header when it terminates TLS, so the viewer receives
+   `viewer.memory.domain.com.br` (without `:3113`). The
+   `VIEWER_ALLOWED_HOSTS` env var in docker-compose.yml references
+   `${VIEWER_DOMAIN}` to cover this proxied Host header.
+4. Click **Save** and **Redeploy**.
 
 After redeploy, the viewer is ready at `https://viewer.memory.domain.com.br`.
 Open it in a browser — the viewer HTML loads immediately. The UI will
@@ -76,13 +86,23 @@ earlier) when it makes authenticated API calls.
 > non-loopback address, it automatically requires:
 > 1. `AGENTMEMORY_SECRET` to be set (generated on first boot)
 > 2. `VIEWER_ALLOWED_HOSTS` to be explicitly configured (set from
->    Coolify's `SERVICE_FQDN_AGENTMEMORY_3113` env var)
+>    Coolify's `SERVICE_FQDN_AGENTMEMORY_3113` and `VIEWER_DOMAIN`
+>    env vars)
 >
 > Every proxied API request through the viewer must present
 > `Authorization: Bearer <secret>`. Static HTML and the favicon are
 > served unauthenticated. The browser JS handles the bearer prompt
 > automatically. This is the same architecture used by the Fly.io
 > deployment template.
+
+> **Why `VIEWER_DOMAIN` is needed:** Coolify's Traefik proxy terminates
+> TLS and then forwards HTTP to the container. When it does so, it
+> strips the port from the `Host` header. The viewer receives
+> `Host: viewer.memory.domain.com.br` (no `:3113`). Without the bare
+> domain in `VIEWER_ALLOWED_HOSTS`, every request would get
+> `403 forbidden host`. `SERVICE_FQDN_AGENTMEMORY_3113` contains the
+> `:3113` suffix (because Coolify needs it for routing), so we also
+> need a separate `VIEWER_DOMAIN` variable.
 
 ## Verify the deployment
 
