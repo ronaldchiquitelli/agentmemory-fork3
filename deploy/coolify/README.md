@@ -9,9 +9,10 @@ provisioning, log aggregation, and the deploy webhook for you.
 ## What you get
 
 - A public HTTPS endpoint serving the agentmemory REST API behind
-  Coolify's built-in Traefik/Caddy proxy. The container port (`3111`)
-  is exposed to the proxy network only — never bound to the host — so
-  TLS termination and domain routing stay under proxy control.
+  Coolify's built-in Traefik/Caddy proxy.
+- An optional second public HTTPS endpoint for the **Viewer** (Web UI)
+  on a separate domain — the viewer binds `0.0.0.0:3113` with bearer-auth
+  and Host-header protection so Coolify's proxy can reach it.
 - A persistent Docker volume backing `/data` for memories, BM25 index,
   and stream backlog. Coolify auto-prefixes the volume name with the
   application's UUID so the data survives redeploys.
@@ -30,19 +31,23 @@ provisioning, log aggregation, and the deploy webhook for you.
 3. **Build Pack**: select *Docker Compose*.
 4. **Base Directory**: `deploy/coolify`
 5. **Compose Path**: `docker-compose.yml`
-6. Click **Save**, then on the application settings screen set a
-   **Domain** in the form `https://<your-fqdn>:3111` (the `:3111`
-   suffix tells Coolify's proxy which container port to forward to;
-   it still serves over 443/80 publicly).
+6. Click **Save**.
+
+### Configure the REST API domain
+
+On the application settings screen, in the **Domains** section, add:
+
+- **Domain**: `https://memory.domain.com.br:3111`
+
+  The `:3111` suffix tells Coolify's proxy which container port to
+  forward to; it still serves over 443/80 publicly.
+
 7. Click **Deploy**.
 
-That's it. Coolify clones the repo, builds the Dockerfile under
-`deploy/coolify/`, provisions the `agentmemory-data` named volume on
-the host, attaches Traefik (or Caddy) for the public domain, and starts
-the service. The container is reachable only through the proxy — there
-is no published host port.
+Wait for the first deploy to finish before configuring the viewer
+domain (the viewer needs the HMAC secret to be generated).
 
-## Capture the HMAC secret
+### Capture the HMAC secret
 
 Once the deploy logs show the service is up, open the application's
 **Logs** tab in Coolify and search for `AGENTMEMORY_SECRET=`. You will
@@ -50,22 +55,72 @@ see exactly one line of the form `AGENTMEMORY_SECRET=<64 hex chars>`.
 Copy it into your client environment (`~/.bashrc`, Claude Desktop
 config, etc.). The secret is never printed again on subsequent boots.
 
+### Configure the Viewer domain
+
+1. In the Coolify dashboard, open your **agentmemory** application.
+2. Go to the **Domains** section and add a second domain:
+   - **Domain**: `https://viewer.memory.domain.com.br:3113`
+
+   The `:3113` suffix tells Coolify's proxy to route traffic for this
+   domain to the container's internal port 3113 (the viewer).
+3. Click **Save** and **Redeploy**.
+
+After redeploy, the viewer is ready at `https://viewer.memory.domain.com.br`.
+Open it in a browser — the viewer HTML loads immediately. The UI will
+prompt you for the HMAC secret (the same `AGENTMEMORY_SECRET` you captured
+earlier) when it makes authenticated API calls.
+
+> **How it works under the hood:** The docker-compose.yml sets
+> `AGENTMEMORY_VIEWER_HOST=0.0.0.0`, which makes the viewer listen on
+> all interfaces instead of just `127.0.0.1`. When the viewer binds to a
+> non-loopback address, it automatically requires:
+> 1. `AGENTMEMORY_SECRET` to be set (generated on first boot)
+> 2. `VIEWER_ALLOWED_HOSTS` to be explicitly configured (set from
+>    Coolify's `SERVICE_FQDN_AGENTMEMORY_3113` env var)
+>
+> Every proxied API request through the viewer must present
+> `Authorization: Bearer <secret>`. Static HTML and the favicon are
+> served unauthenticated. The browser JS handles the bearer prompt
+> automatically. This is the same architecture used by the Fly.io
+> deployment template.
+
 ## Verify the deployment
 
 ```bash
-curl "https://<your-coolify-domain>/agentmemory/livez"
+# REST API (MCP)
+curl "https://memory.domain.com.br/agentmemory/livez"
 # {"status":"ok"}
+
+# Viewer — should return HTML
+curl -s "https://viewer.memory.domain.com.br/" | head -5
+# <!DOCTYPE html><html ...
 ```
 
-For an authenticated call, your client must send
+For authenticated calls, your client must send
 `Authorization: Bearer <secret>`.
+
+## Viewer security model
+
+The viewer is protected by three layers when exposed to the network:
+
+1. **Host-header allowlisting** — `VIEWER_ALLOWED_HOSTS` only accepts
+   requests where the `Host` header matches the configured domain.
+   This prevents DNS-rebinding attacks.
+2. **Bearer authentication** — Every proxied API request must include
+   `Authorization: Bearer <AGENTMEMORY_SECRET>`. The browser UI prompts
+   for it on first 401 response.
+3. **Origin-based CORS** — `VIEWER_ALLOWED_ORIGINS` restricts which
+   origins can make cross-origin requests to the viewer.
+
+All three are configured automatically via environment variables in
+`docker-compose.yml`. No Traefik labels, sidecars, or socat bridges
+are needed.
 
 ## Viewer access (port 3113 stays internal)
 
-The viewer port is not exposed by the compose file on purpose — it
-holds the unauthenticated admin surface in older releases and the
-proxied surface in current ones, neither of which belongs on the open
-internet. Two paths to reach it:
+The viewer port is exposed exclusively through the Coolify proxy — it
+is never bound to the host network. There are two additional ways to
+reach it if needed:
 
 **Option A — SSH tunnel from the Coolify host.** Coolify gives you SSH
 access to the underlying VPS. From your laptop:

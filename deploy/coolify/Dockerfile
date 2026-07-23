@@ -24,7 +24,7 @@ ENV AGENTMEMORY_III_VERSION=${III_VERSION} \
 
 COPY --chmod=0755 entrypoint.sh /usr/local/bin/agentmemory-entrypoint.sh
 
-EXPOSE 3111
+EXPOSE 3111 3113
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD curl -fsS http://127.0.0.1:3111/agentmemory/livez || exit 1

@@ -9,9 +9,29 @@ services:
         III_SDK_VERSION: "0.11.2"
     restart: unless-stopped
     environment:
+      # Coolify injects the actual FQDN into these vars when you configure
+      # domains in the dashboard. They are used downstream for CORS and
+      # Host-header allowlisting.
       SERVICE_FQDN_AGENTMEMORY_3111: ${SERVICE_FQDN_AGENTMEMORY_3111}
+      SERVICE_FQDN_AGENTMEMORY_3113: ${SERVICE_FQDN_AGENTMEMORY_3113}
+
+      # Viewer bind address — 0.0.0.0 makes it reachable through the
+      # Coolify proxy. The viewer requires AGENTMEMORY_SECRET (generated
+      # on first boot) and explicit VIEWER_ALLOWED_HOSTS when bound to
+      # a non-loopback address.
+      AGENTMEMORY_VIEWER_HOST: "0.0.0.0"
+
+      # Host-header allowlist: the viewer only accepts requests whose
+      # Host header matches one of these values. This is the defence
+      # against DNS rebinding when the viewer is network-reachable.
+      VIEWER_ALLOWED_HOSTS: "${SERVICE_FQDN_AGENTMEMORY_3113},localhost:3113,127.0.0.1:3113"
+
+      # CORS origins for viewer responses (both the HTML page and the
+      # REST API proxy responses it generates).
+      VIEWER_ALLOWED_ORIGINS: "https://${SERVICE_FQDN_AGENTMEMORY_3113},http://localhost:3113,http://127.0.0.1:3113"
     expose:
       - "3111"
+      - "3113"
     volumes:
       - agentmemory-data:/data
     healthcheck:
@@ -25,6 +45,13 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - proxy_network
 
 volumes:
   agentmemory-data:
+
+networks:
+  proxy_network:
+    name: ${COOLIFY_NETWORK}
+    external: true
