@@ -124,20 +124,30 @@ For authenticated calls, your client must send
 
 ## Viewer security model
 
-The viewer is protected by three layers when exposed to the network:
+The viewer is protected by four layers when exposed to the network:
 
-1. **Host-header allowlisting** — `VIEWER_ALLOWED_HOSTS` only accepts
+1. **HTTP Basic Auth** — Traefik middleware requiring a username and
+   password before the request reaches the viewer. Default credentials:
+   `admin` / `admin123`. Change the password hash in `docker-compose.yml`
+   (see instructions there).
+2. **Host-header allowlisting** — `VIEWER_ALLOWED_HOSTS` only accepts
    requests where the `Host` header matches the configured domain.
    This prevents DNS-rebinding attacks.
-2. **Bearer authentication** — Every proxied API request must include
+3. **Bearer authentication** — Every proxied API request must include
    `Authorization: Bearer <AGENTMEMORY_SECRET>`. The browser UI prompts
    for it on first 401 response.
-3. **Origin-based CORS** — `VIEWER_ALLOWED_ORIGINS` restricts which
+4. **Origin-based CORS** — `VIEWER_ALLOWED_ORIGINS` restricts which
    origins can make cross-origin requests to the viewer.
 
-All three are configured automatically via environment variables in
-`docker-compose.yml`. No Traefik labels, sidecars, or socat bridges
-are needed.
+To change the Basic Auth password, generate a new hash:
+
+```bash
+openssl passwd -apr1 <new-password>
+```
+
+Then replace the `viewer-auth.basicauth.users` label in
+`docker-compose.yml` with the new hash, remembering to double every
+`$` → `$$` for Docker Compose escaping.
 
 ## Environment variables reference
 
