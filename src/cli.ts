@@ -2010,9 +2010,12 @@ async function postJson<T = unknown>(
   timeoutMs = 5000,
 ): Promise<T | null> {
   try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const secret = process.env["AGENTMEMORY_SECRET"];
+    if (secret) headers["Authorization"] = `Bearer ${secret}`;
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(timeoutMs),
     });
@@ -2028,9 +2031,12 @@ async function postJsonStrict<T = unknown>(
   body: unknown,
   timeoutMs = 5000,
 ): Promise<T | null> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const secret = process.env["AGENTMEMORY_SECRET"];
+  if (secret) headers["Authorization"] = `Bearer ${secret}`;
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(timeoutMs),
   });
@@ -2070,9 +2076,12 @@ async function seedDemoSession(
     };
 
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const secret = process.env["AGENTMEMORY_SECRET"];
+      if (secret) headers["Authorization"] = `Bearer ${secret}`;
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(5000),
       });
