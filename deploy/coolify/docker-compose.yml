@@ -35,23 +35,17 @@ services:
       # Porta 3113 para o Viewer — Coolify roteia domínios :3113 para cá
       - "3113:3113"
     labels:
-      # Viewer — Basic Auth middleware
+      # Basic Auth middleware — protege ambos os domínios (MCP + Viewer)
       - "traefik.http.middlewares.viewer-auth.basicauth.users=admin:$apr1$100q760X$/LrA6Vt7WJajFuXPP4/iR0"
-      - "traefik.http.middlewares.viewer-auth.basicauth.realm=agentmemory-viewer"
-      # Viewer — Traefik HTTPS router (HTML only, com Basic Auth)
+      - "traefik.http.middlewares.viewer-auth.basicauth.realm=agentmemory"
+      # Viewer — Traefik HTTPS router (com Basic Auth, todas as rotas)
       - "traefik.http.routers.agentmemory-viewer.entryPoints=https"
-      - "traefik.http.routers.agentmemory-viewer.rule=Host(`viewer.memory.etell.com.br`) && (Path(`/`) || Path(`/viewer`) || Path(`/favicon.svg`) || PathPrefix(`/assets/`) || PathPrefix(`/dashboard`) || PathPrefix(`/sessions`) || PathPrefix(`/memories`))"
+      - "traefik.http.routers.agentmemory-viewer.rule=Host(`viewer.memory.etell.com.br`)"
       - "traefik.http.routers.agentmemory-viewer.tls=true"
       - "traefik.http.routers.agentmemory-viewer.tls.certresolver=letsencrypt"
       - "traefik.http.routers.agentmemory-viewer.service=agentmemory-viewer"
       - "traefik.http.routers.agentmemory-viewer.middlewares=viewer-auth"
       - "traefik.http.services.agentmemory-viewer.loadbalancer.server.port=3113"
-      # Viewer API router (sem Basic Auth — usa Bearer do viewer)
-      - "traefik.http.routers.agentmemory-viewer-api.entryPoints=https"
-      - "traefik.http.routers.agentmemory-viewer-api.rule=Host(`viewer.memory.etell.com.br`) && PathPrefix(`/agentmemory/`)"
-      - "traefik.http.routers.agentmemory-viewer-api.tls=true"
-      - "traefik.http.routers.agentmemory-viewer-api.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.agentmemory-viewer-api.service=agentmemory-viewer"
       # Viewer — HTTP → HTTPS redirect
       - "traefik.http.routers.agentmemory-viewer-http.entryPoints=http"
       - "traefik.http.routers.agentmemory-viewer-http.rule=Host(`viewer.memory.etell.com.br`)"

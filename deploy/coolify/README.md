@@ -127,9 +127,10 @@ For authenticated calls, your client must send
 The viewer is protected by four layers when exposed to the network:
 
 1. **HTTP Basic Auth** — Traefik middleware requiring a username and
-   password before the request reaches the viewer. Default credentials:
-   `admin` / `admin123`. Change the password hash in `docker-compose.yml`
-   (see instructions there).
+   password before the request reaches the viewer (applies to **both**
+   the Viewer domain and the REST API domain). Default credentials:
+   `admin` / `pass`. Change the password hash in
+   `docker-compose.yml` (see instructions there).
 2. **Host-header allowlisting** — `VIEWER_ALLOWED_HOSTS` only accepts
    requests where the `Host` header matches the configured domain.
    This prevents DNS-rebinding attacks.
@@ -138,6 +139,26 @@ The viewer is protected by four layers when exposed to the network:
    for it on first 401 response.
 4. **Origin-based CORS** — `VIEWER_ALLOWED_ORIGINS` restricts which
    origins can make cross-origin requests to the viewer.
+
+Since Basic Auth protects both domains, your MCP client must include
+the credentials in the URL:
+
+```bash
+# MCP client config
+AGENTMEMORY_URL=https://admin:pass@memory.domain.com.br
+```
+
+Or use the `--secret` flag with the full URL:
+
+```bash
+AGENTMEMORY_URL=https://admin:pass@memory.domain.com.br \
+AGENTMEMORY_SECRET=<hmac-secret> \
+npx @agentmemory/mcp
+```
+
+The browser viewer handles Basic Auth transparently — once you log in,
+the browser sends the credentials with every request, including the
+JavaScript fetch calls to the API.
 
 To change the Basic Auth password, generate a new hash:
 
