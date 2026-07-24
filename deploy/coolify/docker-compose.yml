@@ -35,16 +35,17 @@ services:
       # Porta 3113 para o Viewer — Coolify roteia domínios :3113 para cá
       - "3113:3113"
     labels:
-      # Viewer router — Traefik HTTPS
+      # Viewer — Traefik HTTPS router
+      # Usa domínio literal porque o Coolify escapa $ nas labels.
       - "traefik.http.routers.agentmemory-viewer.entryPoints=https"
-      - "traefik.http.routers.agentmemory-viewer.rule=Host(`${VIEWER_FQDN}`)"
+      - "traefik.http.routers.agentmemory-viewer.rule=Host(`viewer.memory.etell.com.br`)"
       - "traefik.http.routers.agentmemory-viewer.tls=true"
       - "traefik.http.routers.agentmemory-viewer.tls.certresolver=letsencrypt"
       - "traefik.http.routers.agentmemory-viewer.service=agentmemory-viewer"
       - "traefik.http.services.agentmemory-viewer.loadbalancer.server.port=3113"
-      # Viewer router — HTTP redirect
+      # Viewer — HTTP → HTTPS redirect
       - "traefik.http.routers.agentmemory-viewer-http.entryPoints=http"
-      - "traefik.http.routers.agentmemory-viewer-http.rule=Host(`${VIEWER_FQDN}`)"
+      - "traefik.http.routers.agentmemory-viewer-http.rule=Host(`viewer.memory.etell.com.br`)"
       - "traefik.http.routers.agentmemory-viewer-http.middlewares=redirect-to-https"
     volumes:
       - agentmemory-data:/data
