@@ -29,9 +29,11 @@ services:
       # CORS origins for viewer responses (both the HTML page and the
       # REST API proxy responses it generates).
       VIEWER_ALLOWED_ORIGINS: "https://${VIEWER_FQDN},http://localhost:3113,http://127.0.0.1:3113"
-    expose:
-      - "3111"
-      - "3113"
+    ports:
+      # Porta 3111 para o REST API — Coolify roteia domínios :3111 para cá
+      - "3111:3111"
+      # Porta 3113 para o Viewer — Coolify roteia domínios :3113 para cá
+      - "3113:3113"
     volumes:
       - agentmemory-data:/data
     healthcheck:
