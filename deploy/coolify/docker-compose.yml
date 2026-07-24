@@ -45,13 +45,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    networks:
-      - proxy_network
 
 volumes:
   agentmemory-data:
-
-networks:
-  proxy_network:
-    name: ${COOLIFY_NETWORK}
-    external: true
