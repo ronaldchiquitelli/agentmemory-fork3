@@ -36,19 +36,22 @@ services:
       - "3113:3113"
     labels:
       # Viewer — Basic Auth middleware
-      # Gere o hash com: openssl passwd -apr1 <senha>
-      # Depois dobre os $ (cada $ vira $$) para escapar no Docker Compose.
-      # Exemplo: admin:admin123 → hash = $apr1$bZ1LX2uT$6kwdqp8Dl3/.JTebh9ebT/
       - "traefik.http.middlewares.viewer-auth.basicauth.users=admin:$apr1$100q760X$/LrA6Vt7WJajFuXPP4/iR0"
       - "traefik.http.middlewares.viewer-auth.basicauth.realm=agentmemory-viewer"
-      # Viewer — Traefik HTTPS router (com Basic Auth)
+      # Viewer — Traefik HTTPS router (HTML only, com Basic Auth)
       - "traefik.http.routers.agentmemory-viewer.entryPoints=https"
-      - "traefik.http.routers.agentmemory-viewer.rule=Host(`viewer.memory.etell.com.br`)"
+      - "traefik.http.routers.agentmemory-viewer.rule=Host(`viewer.memory.etell.com.br`) && (Path(`/`) || Path(`/viewer`) || Path(`/favicon.svg`) || PathPrefix(`/assets/`) || PathPrefix(`/dashboard`) || PathPrefix(`/sessions`) || PathPrefix(`/memories`))"
       - "traefik.http.routers.agentmemory-viewer.tls=true"
       - "traefik.http.routers.agentmemory-viewer.tls.certresolver=letsencrypt"
       - "traefik.http.routers.agentmemory-viewer.service=agentmemory-viewer"
       - "traefik.http.routers.agentmemory-viewer.middlewares=viewer-auth"
       - "traefik.http.services.agentmemory-viewer.loadbalancer.server.port=3113"
+      # Viewer API router (sem Basic Auth — usa Bearer do viewer)
+      - "traefik.http.routers.agentmemory-viewer-api.entryPoints=https"
+      - "traefik.http.routers.agentmemory-viewer-api.rule=Host(`viewer.memory.etell.com.br`) && PathPrefix(`/agentmemory/`)"
+      - "traefik.http.routers.agentmemory-viewer-api.tls=true"
+      - "traefik.http.routers.agentmemory-viewer-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.agentmemory-viewer-api.service=agentmemory-viewer"
       # Viewer — HTTP → HTTPS redirect
       - "traefik.http.routers.agentmemory-viewer-http.entryPoints=http"
       - "traefik.http.routers.agentmemory-viewer-http.rule=Host(`viewer.memory.etell.com.br`)"
